@@ -118,8 +118,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     final lines = <String>[dateStr, coordStr, addressStr];
 
-    final lineHeight = 22;
-    final overlayHeight = 20 + lines.length * lineHeight;
+    final lineHeight = 32;
+    final overlayHeight = 24 + lines.length * lineHeight;
 
     img.fillRect(
       image,
@@ -135,7 +135,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       img.drawString(
         image,
         line,
-        font: img.arial14,
+        font: img.arial24,
         x: 12,
         y: y,
         color: img.ColorRgb8(255, 255, 255),
