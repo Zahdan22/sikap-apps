@@ -46,7 +46,6 @@ dependencies:
   share_plus: ^13.3.0
   table_calendar: ^3.2.1
   image: ^4.9.2
-  geocoding: ^5.0.0
 
 dev_dependencies:
   flutter_test:

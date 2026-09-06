@@ -2,7 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:geocoding/geocoding.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import '../services/attendance_service.dart';
@@ -81,21 +82,23 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  void _getAddress() async {
-    if (_position == null) return;
-    try {
-      final placemarks = await placemarkFromCoordinates(_position!.latitude, _position!.longitude);
-      if (placemarks.isNotEmpty) {
-        final p = placemarks.first;
-        final parts = [p.street, p.subLocality, p.locality, p.subAdministrativeArea, p.administrativeArea]
-            .where((e) => e != null && e.isNotEmpty)
-            .toList();
-        _address = parts.join(', ');
+    void _getAddress() async {
+      if (_position == null) return;
+      try {
+        final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/reverse?lat=${_position!.latitude}&lon=${_position!.longitude}&format=json',
+        );
+        final response = await http.get(url, headers: {'User-Agent': 'SIKAP-App'});
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          _address = data['display_name'] ?? 'Alamat tidak diketahui';
+        } else {
+          _address = 'Alamat tidak diketahui';
+        }
+      } catch (_) {
+        _address = 'Alamat tidak diketahui';
       }
-    } catch (_) {
-      _address = 'Alamat tidak diketahui';
     }
-  }
 
   String _hariIndo(int weekday) {
     const hari = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
