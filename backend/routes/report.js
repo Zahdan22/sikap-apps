@@ -170,7 +170,7 @@ router.get('/export', verifyToken, verifyManager, async (req, res) => {
     const [rows] = await db.query(
       `SELECT u.nama, u.username, s.tanggal,
         s.jam_mulai AS jadwal_jam_mulai, s.jam_selesai AS jadwal_jam_selesai,
-        a.jam_masuk_aktual, a.jam_pulang_aktual, a.menit_telat, a.status_masuk, a.status_pulang
+        a.jam_masuk_aktual, a.jam_pulang_aktual,a.foto_masuk, a.foto_pulang, a.menit_telat, a.status_masuk, a.status_pulang
       FROM schedule s
       JOIN users u ON s.user_id = u.id
       LEFT JOIN attendance a ON a.schedule_id = s.id
@@ -193,9 +193,18 @@ router.get('/export', verifyToken, verifyManager, async (req, res) => {
       { header: 'Menit Telat', key: 'menit_telat', width: 12 },
       { header: 'Status Masuk', key: 'status_masuk', width: 15 },
       { header: 'Status Pulang', key: 'status_pulang', width: 15 },
+      { header: 'Link Foto Masuk', key: 'link_foto_masuk', width: 40 },
+      { header: 'Link Foto Pulang', key: 'link_foto_pulang', width: 40 },
     ];
     sheet.getRow(1).font = { bold: true };
-    rows.forEach((row) => sheet.addRow(row));
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    rows.forEach((row) => {
+      sheet.addRow({
+        ...row,
+        link_foto_masuk: row.foto_masuk ? `${baseUrl}/uploads/attendance/${row.foto_masuk}` : '-',
+        link_foto_pulang: row.foto_pulang ? `${baseUrl}/uploads/attendance/${row.foto_pulang}` : '-',
+      });
+    });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename=rekap_absensi_${bulan}_${tahun}.xlsx`);

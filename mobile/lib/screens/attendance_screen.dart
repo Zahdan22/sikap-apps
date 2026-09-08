@@ -105,6 +105,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return hari[weekday - 1];
   }
 
+  List<String> _wrapText(String text, int maxCharsPerLine) {
+    final words = text.split(' ');
+    final List<String> lines = [];
+    String currentLine = '';
+
+    for (final word in words) {
+      final testLine = currentLine.isEmpty ? word : '$currentLine $word';
+      if (testLine.length > maxCharsPerLine && currentLine.isNotEmpty) {
+        lines.add(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine.isNotEmpty) lines.add(currentLine);
+    return lines;
+  }
+
   Future<File> _addWatermark(File original) async {
     final bytes = await original.readAsBytes();
     final image = img.decodeImage(bytes)!;
@@ -116,36 +134,58 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final coordStr = '${_position!.latitude.toStringAsFixed(6)}, ${_position!.longitude.toStringAsFixed(6)}';
     final addressStr = _address ?? 'Alamat tidak diketahui';
 
-    final lines = <String>[dateStr, coordStr, addressStr];
+    final font = img.arial48;
 
-    final lineHeight = 32;
-    final overlayHeight = 24 + lines.length * lineHeight;
+    // Estimasi lebar rata-rata 1 karakter (font.size * 0.5 cukup akurat untuk font arial)
+    final int estCharWidth = (font.size * 0.5).round();
+    final int maxCharsPerLine = ((image.width - 32) / estCharWidth).floor();
 
-    img.fillRect(
-      image,
-      x1: 0,
-      y1: image.height - overlayHeight,
-      x2: image.width,
-      y2: image.height,
-      color: img.ColorRgba8(0, 0, 0, 160),
-    );
+    final List<String> lines = [dateStr, coordStr];
+    lines.addAll(_wrapText(addressStr, maxCharsPerLine));
 
-    var y = image.height - overlayHeight + 8;
-    for (final line in lines) {
+    final int naturalLineHeight = (font.lineHeight * 1.4).round();
+    final int naturalOverlayHeight = 24 + lines.length * naturalLineHeight;
+
+    final textLayer = img.Image(width: image.width, height: naturalOverlayHeight, numChannels: 4);
+    img.fill(textLayer, color: img.ColorRgba8(0, 0, 0, 100));
+
+    int y = 12;
+    for (int i = 0; i < lines.length; i++) {
       img.drawString(
-        image,
-        line,
-        font: img.arial24,
-        x: 12,
+        textLayer,
+        lines[i],
+        font: font,
+        x: 16,
         y: y,
         color: img.ColorRgb8(255, 255, 255),
       );
-      y += lineHeight;
+      y = y + naturalLineHeight;
     }
+
+    // Batasi tinggi overlay maksimal 1/3 tinggi foto (jaga-jaga kalau baris terlalu banyak)
+    final int maxOverlayHeight = (image.height / 3).round();
+    final int targetOverlayHeight = naturalOverlayHeight < maxOverlayHeight
+        ? (image.height / 6).round().clamp((image.height / 8).round(), maxOverlayHeight)
+        : maxOverlayHeight;
+
+    final scaledLayer = img.copyResize(
+      textLayer,
+      width: image.width,
+      height: targetOverlayHeight,
+      interpolation: img.Interpolation.average,
+    );
+
+    img.compositeImage(
+      image,
+      scaledLayer,
+      dstX: 0,
+      dstY: image.height - targetOverlayHeight,
+      blend: img.BlendMode.alpha,
+    );
 
     final dir = await getTemporaryDirectory();
     final newFile = File('${dir.path}/wm_${now.millisecondsSinceEpoch}.jpg');
-    await newFile.writeAsBytes(img.encodeJpg(image, quality: 85));
+    await newFile.writeAsBytes(img.encodeJpg(image, quality: 90));
     return newFile;
   }
 
